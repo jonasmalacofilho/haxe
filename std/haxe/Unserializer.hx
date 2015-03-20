@@ -315,7 +315,8 @@ class Unserializer {
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
 				throw "Enum not found " + name;
-			pos++; /* skip ':' */
+			if( get(pos++) != ":".code )
+				throw "Invalid enum format";
 			var index = readDigits();
 			var tag = Type.getEnumConstructs(edecl)[index];
 			if( tag == null )
