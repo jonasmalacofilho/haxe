@@ -174,4 +174,105 @@ class TestSerialize extends Test {
 		infos(null);
 	}
 
+	// mostly decoding tests only, ensuring previously serialized data will
+	// still be readable; they can also sometimes catch incompatibilities
+	// between implementation and spec
+        function testSpec() {
+		var unserialize = haxe.Unserializer.run;
+		var serialize = haxe.Serializer.run;
+
+		var nil = unserialize("n");
+		eq( null, nil );
+
+		var zero = unserialize("z");
+		eq( 0, zero );
+		var int = unserialize("i456");
+		eq( 456, int );
+
+		var nan = unserialize("k");
+		t( Math.isNaN(nan) );
+		var negInf = unserialize("m");
+		f( Math.isFinite(negInf) );
+		t( negInf < 0 );
+		var posInf = unserialize("p");
+		f( Math.isFinite(posInf) );
+		t( posInf > 0 );
+		var float = unserialize("d1.45e-8");
+		eq( 1.45e-8, float );
+
+		t( unserialize("t") );
+		f( unserialize("f") );
+
+		var string = unserialize("y10:hi%20there");
+		t( Std.is(string, String) );
+		eq( "hi there", string );
+
+		var struct = unserialize("oy1:xi2y1:kng");
+		eq( 2, struct.x );
+		t( Reflect.hasField(struct, "k") );
+
+		var list = unserialize("lnnh");
+		t( Std.is(list, List) );
+		aeq( [null, null], Lambda.array(list) );
+
+		var array = unserialize("ai1i2u4i7ni9h");
+		t( Std.is(array, Array) );
+		aeq( [1, 2, null, null, null, null, 7, null, 9], array );
+
+		var date = unserialize("v2010-01-01 12:45:10");
+		t( Std.is(date, Date) );
+		eq( new Date(2010, 0, 1, 12, 45, 10).getTime(), date.getTime() );
+
+		var smap:Dynamic = unserialize("by1:xi2y1:knh");
+		t( Std.is(smap, haxe.ds.StringMap) );
+		eq( 2, Lambda.count( (smap:Iterable<Dynamic>) ) );
+		eq( 2, smap.get("x") );
+		eq( null, smap.get("k") );
+
+		var imap:Dynamic = unserialize("q:4n:5i45:6i7h");
+		t( Std.is(imap, haxe.ds.IntMap) );
+		eq( 3, Lambda.count( (imap:Iterable<Dynamic>) ) );
+		eq( null, imap.get(4) );
+		eq( 45, imap.get(5) );
+		eq( 7, imap.get(6) );
+
+		// TODO ObjectMap
+
+		var bytes:Dynamic = unserialize("s10:SGVsbG8gIQ");
+		t( Std.is(bytes, haxe.io.Bytes) );
+		eq( "Hello !", (bytes:haxe.io.Bytes).toString() );
+
+		exc(unserialize.bind("xz"));
+
+		var cl = unserialize("cy12:unit.MyClassy3:vali999y8:intValuei33y11:stringValuey5:Hellog");
+		t( Std.is(cl, MyClass) );
+		eq( 33, cl.intValue );
+		eq( "Hello", cl.stringValue );
+		eq( 999, cl.get() );
+
+		var enum1 = unserialize("wy11:unit.MyEnumy1:B:0");
+		t( Std.is(enum1, MyEnum) );
+		t( Type.enumEq(enum1, MyEnum.B) );
+		var enum2 = unserialize("wy11:unit.MyEnumy1:C:2zy2:Hi");
+		t( Std.is(enum2, MyEnum) );
+		t( Type.enumEq(enum2, MyEnum.C(0, "Hi")) );
+		var enum3 = unserialize("jy11:unit.MyEnum:1:0");
+		t( Std.is(enum3, MyEnum) );
+		t( Type.enumEq(enum3, MyEnum.B) );
+		var enum4 = unserialize("jy11:unit.MyEnum:2:2zy2:Hi");
+		t( Std.is(enum4, MyEnum) );
+		t( Type.enumEq(enum4, MyEnum.C(0, "Hi")) );
+
+		var strings = ["foo", "bar", "foo", "bar", "foo"];
+		var _strings = serialize(strings);
+		eq( "ay3:fooy3:barR0R1R0h", _strings);
+		aeq( strings, unserialize(_strings) );
+
+		var clr:MyClass = unserialize("cy12:unit.MyClassy3:refr0g");
+		eq( clr.ref, clr );
+
+		// missing: custom c
+	}
+
 }
+
